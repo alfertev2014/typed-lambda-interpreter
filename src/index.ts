@@ -1,4 +1,4 @@
-import { checkTag, matchTagged, tagged, Tagged, __tag } from './tagged'
+import { tagged, Tagged, __tag } from './tagged'
 
 const variable = (name: string) => tagged('Variable', { name })
 const lambda = (variable: string, body: Term) =>
@@ -25,6 +25,13 @@ const mkenv = (variable: string, value: ResultTerm, next: Environment) => ({
   next,
 })
 
+const assoc = (variable: string, env: Environment): ResultTerm | null => {
+  if (!env) {
+    return null
+  }
+  return env.variable === variable ? env.value : assoc(variable, env.next)
+}
+
 type Closure = Tagged<'Closure', { lambda: Lambda; env: Environment }>
 const closure = (lambda: Lambda, env: Environment) => tagged('Closure', { lambda, env })
 
@@ -33,19 +40,24 @@ type ResultTerm = Variable | Closure
 const evaluate = (term: Term, env: Environment): ResultTerm => {
   switch (term[__tag]) {
     case 'Application':
-      return apply(term.term1, term.term2, env)
+      return apply(evaluate(term.term1, env), evaluate(term.term2, env), env)
     case 'Lambda':
       return closure(term, env)
-    default:
-      return term
+    default: {
+      const res = assoc(term.name, env)
+      if (!res) {
+        throw new Error(`Undefined variable '${term.name}'`)
+      }
+      return res
+    }
   }
 }
 
-const apply = (m: Term, n: Term, env: Environment): ResultTerm => {
-  if (!checkTag(m, 'Lambda')) {
+const apply = (m: ResultTerm, n: ResultTerm, env: Environment): ResultTerm => {
+  if (m[__tag] === 'Closure') {
     throw new Error('Apply of nonapplyable!')
   }
-  const newEnv: Environment = mkenv(m.variable, evaluate(n, env), env)
+  const newEnv: Environment = mkenv(m.name, n, env)
   return evaluate(m, newEnv)
 }
 
