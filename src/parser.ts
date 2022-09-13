@@ -1,4 +1,4 @@
-export type ParseState = {
+export type ParserState = {
   readonly rest: string
   readonly position: number
   readonly line: number
@@ -7,7 +7,7 @@ export type ParseState = {
 export type ParseSuccessResult<T = unknown> = {
   readonly res: T
   readonly position: number
-  readonly state: ParseState
+  readonly state: ParserState
 }
 
 export type ParseError = {
@@ -17,7 +17,18 @@ export type ParseError = {
 
 export type ParseResult<T = unknown> = ParseSuccessResult<T> | ParseError
 
-export type Parser<T = unknown> = (state: ParseState) => ParseResult<T>
+export type Parser<T = unknown> = (state: ParserState) => ParseResult<T>
+
+type ExtractParserType<T> = T extends Parser<infer MaybeType>
+  ? MaybeType
+  : never
+
+export type ExtractParsersTuple<Tuple extends [...unknown[]]> = {
+  [Index in keyof Tuple]: ExtractParserType<Tuple[Index]>
+} & { length: Tuple['length'] }
+
+export type ExtractParsersUnion<Tuple extends [...unknown[]]> =
+  ExtractParsersTuple<Tuple>[number]
 
 export const tok =
   (s: string | RegExp): Parser<string> =>
@@ -51,10 +62,12 @@ export const tok =
   }
 
 export const seq =
-  <T>(...args: Parser<T>[]): Parser<T[]> =>
+  <T, Args extends Parser<T>[]>(
+    ...args: Args
+  ): Parser<ExtractParsersTuple<Args>> =>
   (state) => {
     const start = state.position
-    const res: T[] = []
+    const res: unknown[] = []
     for (const arg of args) {
       const parsed = arg(state)
       if ('error' in parsed) {
@@ -64,19 +77,21 @@ export const seq =
       res.push(parsed.res)
     }
     return {
-      res,
+      res: res as ExtractParsersTuple<Args>,
       state,
       position: start,
     }
   }
 
 export const or =
-  <T>(...args: Parser<T>[]): Parser<T> =>
+  <T, Args extends Parser<T>[]>(
+    ...args: Args
+  ): Parser<ExtractParsersUnion<Args>> =>
   (state) => {
     for (const arg of args) {
       const parsed = arg(state)
       if (!('error' in parsed)) {
-        return parsed
+        return parsed as ReturnType<Parser<ExtractParsersUnion<Args>>>
       }
     }
     return {
@@ -107,6 +122,5 @@ export const star =
 
 export const opt =
   <T>(arg: Parser<T>): Parser<T | string> =>
-  (state) => {
-    return or<T | string>(arg, tok(''))(state)
-  }
+  (state) =>
+    or(arg, tok(''))(state)

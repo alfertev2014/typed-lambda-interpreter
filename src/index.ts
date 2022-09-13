@@ -1,66 +1,53 @@
-import { tagged, Tagged, __tag } from './tagged'
+import { app, Application, Lambda, lmd, Term, Variable, vr } from './lambda'
+import { or, Parser, seq, tok } from './parser'
 
-const variable = (name: string) => tagged('Variable', { name })
-const lambda = (variable: string, body: Term) =>
-  tagged('Lambda', { variable, body })
-const application = (term1: Term, term2: Term) =>
-  tagged('Application', { term1, term2 })
+const spaces: Parser<string> = tok(/\s*/)
 
-type Variable = Tagged<'Variable', { name: string }>
-type Lambda = Tagged<'Lambda', { variable: string; body: Term }>
-type Application = Tagged<'Application', { term1: Term; term2: Term }>
+const alphaNum: Parser<string> = tok(/[a-zA-Z][a-zA-Z0-9]*/)
 
-export type Term = Variable | Lambda | Application
-
-type Environment = {
-  variable: string
-  value: ResultTerm
-  next: Environment
-} | null
-
-
-const mkenv = (variable: string, value: ResultTerm, next: Environment) => ({
-  value,
-  variable,
-  next,
-})
-
-const assoc = (variable: string, env: Environment): ResultTerm | null => {
-  if (!env) {
-    return null
+const parseVar: Parser<Variable> = (state) => {
+  const parsed = alphaNum(state)
+  if ('error' in parsed) {
+    return parsed
   }
-  return env.variable === variable ? env.value : assoc(variable, env.next)
-}
-
-type Closure = Tagged<'Closure', { lambda: Lambda; env: Environment }>
-const closure = (lambda: Lambda, env: Environment) => tagged('Closure', { lambda, env })
-
-type ResultTerm = Variable | Closure
-
-const evaluate = (term: Term, env: Environment): ResultTerm => {
-  switch (term[__tag]) {
-    case 'Application':
-      return apply(evaluate(term.term1, env), evaluate(term.term2, env), env)
-    case 'Lambda':
-      return closure(term, env)
-    default: {
-      const res = assoc(term.name, env)
-      if (!res) {
-        throw new Error(`Undefined variable '${term.name}'`)
-      }
-      return res
-    }
+  return {
+    ...parsed,
+    res: vr(parsed.res),
   }
 }
 
-const apply = (m: ResultTerm, n: ResultTerm, env: Environment): ResultTerm => {
-  if (m[__tag] === 'Closure') {
-    throw new Error('Apply of nonapplyable!')
+const parseLambda: Parser<Lambda> = (state) => {
+  const parsed = seq(
+    tok('\\'),
+    spaces,
+    alphaNum,
+    spaces,
+    tok('.'),
+    spaces,
+    parseTerm
+  )(state)
+  if ('error' in parsed) {
+    return parsed
   }
-  const newEnv: Environment = mkenv(m.name, n, env)
-  return evaluate(m, newEnv)
+  const [, , variable, , , , body] = parsed.res
+  return { ...parsed, res: lmd(variable, body) }
 }
 
+const parseApp: Parser<Application> = (state) => {
+  const parsed = seq(parseTerm, spaces, parseTerm)(state)
+  if ('error' in parsed) {
+    return parsed
+  }
+  const [term1, , term2] = parsed.res
+  return { ...parsed, res: app(term1, term2) }
+}
 
-const term = application(lambda('x', variable('x')), variable('y'))
+const parseTerm: Parser<Term> = (state) => {
+  const parsed = or(parseVar, parseLambda, parseApp)(state)
+  if ('error' in parsed) {
+    return parsed
+  }
+  return parsed
+}
 
+const term = app(lmd('x', vr('x')), vr('y'))
