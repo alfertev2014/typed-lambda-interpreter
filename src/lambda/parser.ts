@@ -38,5 +38,22 @@ const parseApp: Parser<Application> = (state) => {
   return { ...parsed, res: app(term1, term2) }
 }
 
+const parseBraces: Parser<Term> = (state) => {
+  const parsed = seq(tok('('), spaces, parseTerm, spaces, tok(')'))(state)
+  if ('error' in parsed) {
+    return parsed
+  }
+  const [ , , term, , ] = parsed.res
+  return { ...parsed, res: term }
+}
+
 const parseTerm: Parser<Term> = (state) =>
-  or(parseVar, parseLambda, parseApp)(state)
+  or(parseVar, parseLambda, parseApp, parseBraces)(state)
+
+export const parse = (s: string) => {
+  const parsed = parseTerm({ line: 0, position: 0, rest: s})
+  if ('error' in parsed) {
+    throw new Error(`Parse error at position ${parsed.position}: ${parsed.error}`)
+  }
+  return parsed.res
+}

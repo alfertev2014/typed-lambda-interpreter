@@ -56,9 +56,10 @@ export const apply = (
   n: ResultTerm,
   env: Environment
 ): ResultTerm => {
-  if (m.t === 'Closure') {
+  if (m.t !== 'Closure') {
     throw new Error('Apply of nonapplyable!')
   }
-  const newEnv: Environment = mkenv(m.name, n, env)
-  return evaluate(m, newEnv)
+  const { variable, body } = m.lambda
+  const newEnv: Environment = mkenv(variable, n, env)
+  return evaluate(body, newEnv)
 }
