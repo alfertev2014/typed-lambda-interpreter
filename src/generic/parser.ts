@@ -124,3 +124,8 @@ export const opt =
   <T>(arg: Parser<T>): Parser<T | string> =>
   (state) =>
     or(arg, tok(''))(state)
+
+
+export const spaces: Parser<string> = tok(/\s*/)
+
+export const alphaNum: Parser<string> = tok(/[a-zA-Z][a-zA-Z0-9]*/)
