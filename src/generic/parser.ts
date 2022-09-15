@@ -137,6 +137,16 @@ export const opt =
   (state) =>
     or(arg, tok(''))(state)
 
+export const transformParser =
+  <T, R>(parser: Parser<T>, handler: (res: T) => R): Parser<R> =>
+  (state) => {
+    const parsed = parser(state)
+    if ('error' in parsed) {
+      return parsed
+    }
+    return { ...parsed, res: handler(parsed.res) }
+  }
+
 export const spaces: Parser<string> = tok(/^\s*/)
 
 export const alphaNum: Parser<string> = tok(/^[a-zA-Z][a-zA-Z0-9]*/)
