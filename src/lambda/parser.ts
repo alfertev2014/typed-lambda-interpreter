@@ -1,4 +1,4 @@
-import { alphaNum, or, Parser, seq, spaces, tok } from '../generic/parser'
+import { alphaNum, or, Parser, seq, spaces, star, tok } from '../generic/parser'
 import { app, Application, Lambda, lmd, Term, Variable, vr } from './ast'
 
 const parseVar: Parser<Variable> = (state) => {
@@ -20,7 +20,7 @@ const parseLambda: Parser<Lambda> = (state) => {
     spaces,
     tok('.'),
     spaces,
-    parseTerm
+    parseApp
   )(state)
   if ('error' in parsed) {
     return parsed
@@ -29,17 +29,21 @@ const parseLambda: Parser<Lambda> = (state) => {
   return { ...parsed, res: lmd(variable, body) }
 }
 
-const parseApp: Parser<Application> = (state) => {
-  const parsed = seq(parseTerm, spaces, parseTerm)(state)
+const parseApp: Parser<Term> = (state) => {
+  const parsed = seq(parseSimpleTerm, star(seq(spaces, parseSimpleTerm)))(state)
   if ('error' in parsed) {
     return parsed
   }
-  const [term1, , term2] = parsed.res
-  return { ...parsed, res: app(term1, term2) }
+  const [term1, term2] = parsed.res
+  let res: Term = term1
+  for (const [ , t] of term2) {
+    res = app(res, t)
+  }
+  return { ...parsed, res }
 }
 
 const parseBraces: Parser<Term> = (state) => {
-  const parsed = seq(tok('('), spaces, parseTerm, spaces, tok(')'))(state)
+  const parsed = seq(tok('('), spaces, parseSimpleTerm, spaces, tok(')'))(state)
   if ('error' in parsed) {
     return parsed
   }
@@ -47,11 +51,11 @@ const parseBraces: Parser<Term> = (state) => {
   return { ...parsed, res: term }
 }
 
-const parseTerm: Parser<Term> = (state) =>
-  or(parseVar, parseLambda, parseApp, parseBraces)(state)
+const parseSimpleTerm: Parser<Term> = (state) =>
+  or(parseLambda, parseBraces, parseVar)(state)
 
 export const parse = (s: string) => {
-  const parsed = parseTerm({ line: 0, position: 0, rest: s})
+  const parsed = parseApp({ line: 0, position: 0, rest: s})
   if ('error' in parsed) {
     throw new Error(`Parse error at position ${parsed.position}: ${parsed.error}`)
   }

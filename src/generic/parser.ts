@@ -19,8 +19,8 @@ export type ParseResult<T = unknown> = ParseSuccessResult<T> | ParseError
 
 export type Parser<T = unknown> = (state: ParserState) => ParseResult<T>
 
-type ExtractParserType<T> = T extends Parser<infer MaybeType>
-  ? MaybeType
+type ExtractParserType<T> = T extends Parser<infer ResultType>
+  ? ResultType
   : never
 
 export type ExtractParsersTuple<Tuple extends [...unknown[]]> = {
@@ -39,7 +39,13 @@ export const tok =
       if (matched && matched.length > 0) {
         token = matched[0]
       } else {
-        throw new Error(`Token /${s.source}/ expected`)
+        return {
+          error: `Token /${s.source}/ expected but '${state.rest.substring(
+            0,
+            20
+          )}' found`,
+          position: state.position,
+        }
       }
     } else if (s === '') {
       token = ''
@@ -47,7 +53,13 @@ export const tok =
       if (state.rest.startsWith(s)) {
         token = s
       } else {
-        throw new Error(`Token '${s}' expected`)
+        return {
+          error: `Token '${s}' expected but '${state.rest.substring(
+            0,
+            20
+          )}' found`,
+          position: state.position,
+        }
       }
     }
     return {
@@ -125,7 +137,6 @@ export const opt =
   (state) =>
     or(arg, tok(''))(state)
 
+export const spaces: Parser<string> = tok(/^\s*/)
 
-export const spaces: Parser<string> = tok(/\s*/)
-
-export const alphaNum: Parser<string> = tok(/[a-zA-Z][a-zA-Z0-9]*/)
+export const alphaNum: Parser<string> = tok(/^[a-zA-Z][a-zA-Z0-9]*/)

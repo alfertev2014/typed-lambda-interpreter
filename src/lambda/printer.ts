@@ -29,18 +29,24 @@ const repeat = (depth: number, char: string) => {
 
 const indent = (depth: number) => repeat(depth, ' ')
 
-const prettyPrint = (term: Term | ResultTerm, depth: number): string => {
+const withBraces = (braces: boolean, s: string) => (braces ? `(${s})` : s)
+
+export const prettyPrint = (term: Term | ResultTerm, depth = 0): string => {
   switch (term.t) {
     case 'Variable':
       return term.name
     case 'Lambda':
-      return `(\\${term.variable}.\n${indent(
-        depth + 1
-      )}${prettyPrint(term.body, depth + 2)})`
+      return `\\${term.variable}.\n${indent(depth + 1)}${prettyPrint(
+        term.body,
+        depth + 2
+      )}`
     case 'Application':
-      return `${prettyPrint(term.term1, depth)} ${prettyPrint(
-        term.term2,
-        depth + 1
+      return `${withBraces(
+        term.term1.t === 'Lambda',
+        prettyPrint(term.term1, depth)
+      )} ${withBraces(
+        term.term2.t !== 'Variable',
+        prettyPrint(term.term2, depth + 1)
       )}`
     case 'Closure': {
       let res = `\n${indent(depth)}[`
@@ -54,5 +60,3 @@ const prettyPrint = (term: Term | ResultTerm, depth: number): string => {
     }
   }
 }
-
-export const pretty = (term: Term | ResultTerm) => prettyPrint(term, 0)
