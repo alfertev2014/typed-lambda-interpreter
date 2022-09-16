@@ -1,29 +1,47 @@
+import repl from 'repl'
 import { evaluate } from './lambda/eval'
 import { parse } from './lambda/parser'
 import { prettyPrint } from './lambda/printer'
 
-const ps1 = '\\.> '
+type ReplOutput = {
+  echo?: string
+  result?: string
+  error?: unknown
+}
 
-process.stdout.write('\n' + ps1)
-
-process.stdin.on('data', (data) => {
+const replEval = (cmd: string): ReplOutput => {
   try {
-    const term = parse(data.toString())
+    const term = parse(cmd)
 
-    process.stdout.write(prettyPrint(term) + '\n')
+    const echo = prettyPrint(term)
 
     const res = evaluate(term, null)
 
-    process.stdout.write(`${prettyPrint(res)}\n${ps1}`)
+    return {
+      echo,
+      result: prettyPrint(res)
+    }
   } catch (e) {
     if (e instanceof Error) {
-      process.stdout.write(`ERROR: ${e.message}\n${ps1}`)
+      return {
+        echo: cmd,
+        error: `${cmd}\nERROR: ${e.message}\n`
+      }
     } else {
-      console.error(e)
+      return {
+        echo: cmd,
+        error: e
+      }
     }
   }
-})
+}
 
-process.stdin.on('end', () => {
-  process.stdout.write('\n')
+repl.start({
+  prompt: '\\.> ',
+  eval: (cmd, context, file, cb) => {
+    cb(null, replEval(cmd))
+  },
+  writer: ({ echo, result, error}: ReplOutput) => {
+    return `${echo ?? ''}\n${result ?? ''}\n${String(error ?? '')}`
+  }
 })
