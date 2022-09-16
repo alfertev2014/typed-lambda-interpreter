@@ -1,4 +1,5 @@
 import repl from 'repl'
+import clc from 'cli-color'
 import { evaluate } from './lambda/eval'
 import { parse } from './lambda/parser'
 import { prettyPrint } from './lambda/printer'
@@ -19,29 +20,31 @@ const replEval = (cmd: string): ReplOutput => {
 
     return {
       echo,
-      result: prettyPrint(res)
+      result: prettyPrint(res),
     }
   } catch (e) {
     if (e instanceof Error) {
       return {
         echo: cmd,
-        error: `${cmd}\nERROR: ${e.message}\n`
+        error: `ERROR: ${e.message}`,
       }
     } else {
       return {
         echo: cmd,
-        error: e
+        error: e,
       }
     }
   }
 }
 
 repl.start({
-  prompt: '\\.> ',
+  prompt: clc.cyanBright('\\.> '),
   eval: (cmd, context, file, cb) => {
     cb(null, replEval(cmd))
   },
-  writer: ({ echo, result, error}: ReplOutput) => {
-    return `${echo ?? ''}\n${result ?? ''}\n${String(error ?? '')}`
-  }
+  writer: ({ echo, result, error }: ReplOutput) => {
+    return `${echo ? clc.yellow(`--->\n${echo}`) : ''}\n${
+      result ? clc.greenBright(`<---\n${result}`) : ''
+    }\n${error ? clc.redBright(String(error ?? '')) : ''}`
+  },
 })

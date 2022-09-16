@@ -36,10 +36,9 @@ export const prettyPrint = (term: Term | ResultTerm, depth = 0): string => {
     case 'Variable':
       return term.name
     case 'Lambda':
-      return `\\${term.variable}.\n${indent(depth + 1)}${prettyPrint(
-        term.body,
-        depth + 2
-      )}`
+      return `\\${term.variable}.${
+        term.body.t !== 'Lambda' ? `\n${indent(depth)}` : ''
+      }${prettyPrint(term.body, depth + 1)}`
     case 'Application':
       return `${withBraces(
         term.term1.t === 'Lambda',
@@ -49,11 +48,11 @@ export const prettyPrint = (term: Term | ResultTerm, depth = 0): string => {
         prettyPrint(term.term2, depth + 1)
       )}`
     case 'Closure': {
-      let res = `\n${indent(depth)}[`
+      let res = `[`
       for (let env = term.env; env; env = env.next) {
-        res += `\n${indent(depth + 1)}${env.variable}->${prettyPrint(
+        res += `\n${indent(depth)}${env.variable}->${prettyPrint(
           env.value,
-          depth + 2
+          depth + 1
         )},`
       }
       return res + ']' + prettyPrint(term.lambda, depth)
