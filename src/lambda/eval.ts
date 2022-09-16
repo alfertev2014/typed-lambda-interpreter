@@ -38,7 +38,7 @@ export type ResultTerm = Variable | Closure
 export const evaluate = (term: Term, env: Environment): ResultTerm => {
   switch (term.t) {
     case 'Application':
-      return apply(evaluate(term.term1, env), evaluate(term.term2, env), env)
+      return apply(evaluate(term.term1, env), evaluate(term.term2, env))
     case 'Lambda':
       return closure(term, env)
     default: {
@@ -53,13 +53,12 @@ export const evaluate = (term: Term, env: Environment): ResultTerm => {
 
 export const apply = (
   m: ResultTerm,
-  n: ResultTerm,
-  env: Environment
+  n: ResultTerm
 ): ResultTerm => {
   if (m.t !== 'Closure') {
     throw new Error('Apply of nonapplyable!')
   }
   const { variable, body } = m.lambda
-  const newEnv: Environment = mkenv(variable, n, env)
+  const newEnv: Environment = mkenv(variable, n, m.env)
   return evaluate(body, newEnv)
 }
