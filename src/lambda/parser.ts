@@ -7,7 +7,9 @@ import {
   spaces,
   star,
   tok,
+  eof,
 } from '../generic/parser'
+import { repeat } from '../generic/print'
 import { app, Lambda, lmd, Term, Variable, vr } from './ast'
 
 const parseVar: Parser<Variable> = transformParser(alphaNum, (name: string) =>
@@ -34,18 +36,47 @@ const parseApp: Parser<Term> = (state) =>
 
 const parseBraces: Parser<Term> = (state) =>
   transformParser(
-    seq(tok('('), spaces, parseSimpleTerm, spaces, tok(')')),
+    seq(tok('('), spaces, parseApp, spaces, tok(')')),
     ([, , term, ,]) => term
   )(state)
 
 const parseSimpleTerm: Parser<Term> =
   or(parseLambda, parseBraces, parseVar)
 
+const parseRoot: Parser<Term> = transformParser(
+  seq(spaces, parseApp, spaces, eof),
+  ([ , term, , ]) => term
+)
+
+const printLinePosition = (s:string, position: number): string => {
+  let line = 0
+  let lineStart = 0
+  let lineEnd = 0
+  for (;;) {
+    const nextLine = s.indexOf('\n', lineStart)
+    if (nextLine < 0) {
+      lineEnd = s.length
+      break
+    }
+    if (nextLine > position) {
+      lineEnd = nextLine
+      break
+    }
+    lineStart = nextLine + 1
+    line++
+  }
+  const column = position - lineStart
+  return `    at line ${line} (column ${column}):\n${s.substring(lineStart, lineEnd)}\n${
+    repeat(column, ' ')
+  }^`
+}
+
 export const parse = (s: string) => {
-  const parsed = parseApp({ line: 0, position: 0, rest: s })
+  const parsed = parseRoot({ position: 0, rest: s })
   if ('error' in parsed) {
+    const message = parsed.error === 'or' ? 'Unexpected syntax' : 'Unexpected token'
     throw new Error(
-      `Parse error at position ${parsed.position}: ${parsed.error}`
+      `Parse error: ${message}\n${printLinePosition(s, parsed.position)}`
     )
   }
   return parsed.res

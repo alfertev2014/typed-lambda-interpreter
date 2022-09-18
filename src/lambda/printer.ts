@@ -1,3 +1,4 @@
+import { indent, withBraces } from '../generic/print'
 import { Term } from './ast'
 import { ResultTerm } from './eval'
 
@@ -18,18 +19,6 @@ export const print = (term: Term | ResultTerm): string => {
     }
   }
 }
-
-const repeat = (depth: number, char: string) => {
-  let res = ''
-  for (let i = 0; i < depth; ++i) {
-    res += char
-  }
-  return res
-}
-
-const indent = (depth: number) => repeat(depth, ' ')
-
-const withBraces = (braces: boolean, s: string) => (braces ? `(${s})` : s)
 
 export const prettyPrint = (term: Term | ResultTerm, depth = 0): string => {
   switch (term.t) {

@@ -1,7 +1,6 @@
 export type ParserState = {
   readonly rest: string
   readonly position: number
-  readonly line: number
 }
 
 export type ParseSuccessResult<T = unknown> = {
@@ -10,8 +9,10 @@ export type ParseSuccessResult<T = unknown> = {
   readonly state: ParserState
 }
 
+export type ParseErrorType = 'tok' | 'or'
+
 export type ParseError = {
-  readonly error: string
+  readonly error: ParseErrorType
   readonly position: number
 }
 
@@ -40,24 +41,16 @@ export const tok =
         token = matched[0]
       } else {
         return {
-          error: `Token /${s.source}/ expected but '${state.rest.substring(
-            0,
-            20
-          )}' found`,
+          error: 'tok',
           position: state.position,
         }
       }
-    } else if (s === '') {
-      token = ''
-    } else {
+    } else if (s !== '') {
       if (state.rest.startsWith(s)) {
         token = s
       } else {
         return {
-          error: `Token '${s}' expected but '${state.rest.substring(
-            0,
-            20
-          )}' found`,
+          error: 'tok',
           position: state.position,
         }
       }
@@ -66,7 +59,6 @@ export const tok =
       res: token,
       position: state.position,
       state: {
-        ...state,
         position: state.position + token.length,
         rest: state.rest.substring(token.length),
       },
@@ -108,7 +100,7 @@ export const or =
     }
     return {
       position: state.position,
-      error: 'No one of alternatives can be applied',
+      error: 'or',
     }
   }
 
@@ -147,6 +139,8 @@ export const transformParser =
     return { ...parsed, res: handler(parsed.res) }
   }
 
-export const spaces: Parser<string> = tok(/^\s*/)
+export const spaces: Parser<string> = tok(/^\s*/m)
 
 export const alphaNum: Parser<string> = tok(/^[a-zA-Z][a-zA-Z0-9]*/)
+
+export const eof: Parser<string> = tok(/^$/)
