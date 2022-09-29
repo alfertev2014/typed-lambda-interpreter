@@ -24,10 +24,10 @@ const parseLambda: Parser<Lambda> = (state) =>
 
 const parseApp: Parser<Term> = (state) =>
   transformParser(
-    seq(parseSimpleTerm, star(seq(spaces, parseSimpleTerm))),
-    ([term1, term2]) => {
+    seq(parseSimpleTerm, spaces, star(seq(parseSimpleTerm, spaces))),
+    ([term1, , term2]) => {
       let res: Term = term1
-      for (const [, t] of term2) {
+      for (const [t] of term2) {
         res = app(res, t)
       }
       return res
@@ -40,15 +40,14 @@ const parseBraces: Parser<Term> = (state) =>
     ([, , term, ,]) => term
   )(state)
 
-const parseSimpleTerm: Parser<Term> =
-  or(parseLambda, parseBraces, parseVar)
+const parseSimpleTerm: Parser<Term> = or(parseLambda, parseBraces, parseVar)
 
 const parseRoot: Parser<Term> = transformParser(
   seq(spaces, parseApp, spaces, eof),
-  ([ , term, , ]) => term
+  ([, term, ,]) => term
 )
 
-const printLinePosition = (s:string, position: number): string => {
+const printLinePosition = (s: string, position: number): string => {
   let line = 0
   let lineStart = 0
   let lineEnd = 0
@@ -66,15 +65,17 @@ const printLinePosition = (s:string, position: number): string => {
     line++
   }
   const column = position - lineStart
-  return `    at line ${line} (column ${column}):\n${s.substring(lineStart, lineEnd)}\n${
-    repeat(column, ' ')
-  }^`
+  return `    at line ${line} (column ${column}):\n${s}\n${repeat(
+    column,
+    ' '
+  )}^`
 }
 
 export const parse = (s: string) => {
-  const parsed = parseRoot({ position: 0, rest: s })
+  const parsed = parseRoot({ position: 0, rest: s, tryCase: false })
   if ('error' in parsed) {
-    const message = parsed.error === 'or' ? 'Unexpected syntax' : 'Unexpected token'
+    const message =
+      parsed.error === 'or' ? 'Unexpected syntax' : 'Unexpected token'
     throw new Error(
       `Parse error: ${message}\n${printLinePosition(s, parsed.position)}`
     )

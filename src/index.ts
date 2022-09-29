@@ -11,6 +11,9 @@ type ReplOutput = {
 }
 
 const replEval = (cmd: string): ReplOutput => {
+  if (!cmd.trim()) {
+    return {}
+  }
   try {
     const term = parse(cmd)
 
@@ -43,8 +46,8 @@ repl.start({
     cb(null, replEval(cmd))
   },
   writer: ({ echo, result, error }: ReplOutput) => {
-    return `${echo ? clc.yellow(`--->\n${echo}`) : ''}\n${
-      result ? clc.greenBright(`<---\n${result}`) : ''
-    }\n${error ? clc.redBright(String(error ?? '')) : ''}`
+    return `${echo ? clc.yellow(`--->\n${echo}\n`) : ''}${
+      result ? clc.greenBright(`<---\n${result}\n`) : ''
+    }${error ? clc.redBright(String(error ?? '')) : ''}`
   },
 })

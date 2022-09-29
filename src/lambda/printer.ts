@@ -20,13 +20,13 @@ export const print = (term: Term | ResultTerm): string => {
   }
 }
 
-export const prettyPrint = (term: Term | ResultTerm, depth = 0): string => {
+export const prettyPrint = (term: Term | ResultTerm, depth = 1): string => {
   switch (term.t) {
     case 'Variable':
       return term.name
     case 'Lambda':
       return `\\${term.variable}.${
-        term.body.t !== 'Lambda' ? `\n${indent(depth)}` : ''
+        term.body.t === 'Application' ? `\n${indent(depth)}` : ''
       }${prettyPrint(term.body, depth + 1)}`
     case 'Application':
       return `${withBraces(

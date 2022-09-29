@@ -1,6 +1,7 @@
 export type ParserState = {
   readonly rest: string
   readonly position: number
+  readonly tryCase: boolean
 }
 
 export type ParseSuccessResult<T = unknown> = {
@@ -9,7 +10,7 @@ export type ParseSuccessResult<T = unknown> = {
   readonly state: ParserState
 }
 
-export type ParseErrorType = 'tok' | 'or'
+export type ParseErrorType = 'tok' | 'or' | 'case'
 
 export type ParseError = {
   readonly error: ParseErrorType
@@ -41,7 +42,7 @@ export const tok =
         token = matched[0]
       } else {
         return {
-          error: 'tok',
+          error: state.tryCase ? 'case' : 'tok',
           position: state.position,
         }
       }
@@ -50,7 +51,7 @@ export const tok =
         token = s
       } else {
         return {
-          error: 'tok',
+          error: state.tryCase ? 'case' : 'tok',
           position: state.position,
         }
       }
@@ -61,6 +62,7 @@ export const tok =
       state: {
         position: state.position + token.length,
         rest: state.rest.substring(token.length),
+        tryCase: token.length > 0 ? false : state.tryCase,
       },
     }
   }
@@ -93,14 +95,18 @@ export const or =
   ): Parser<ExtractParsersUnion<Args>> =>
   (state) => {
     for (const arg of args) {
-      const parsed = arg(state)
-      if (!('error' in parsed)) {
+      const parsed = arg({ ...state, tryCase: true })
+      if ('error' in parsed) {
+        if (parsed.error !== 'case') {
+          return parsed
+        }
+      } else {
         return parsed as ReturnType<Parser<ExtractParsersUnion<Args>>>
       }
     }
     return {
       position: state.position,
-      error: 'or',
+      error: state.tryCase ? 'case' : 'or',
     }
   }
 
@@ -110,8 +116,11 @@ export const star =
     const start = state.position
     const res: T[] = []
     for (;;) {
-      const parsed = parser(state)
+      const parsed = parser({ ...state, tryCase: true })
       if ('error' in parsed) {
+        if (parsed.error !== 'case') {
+          return parsed
+        }
         break
       }
       state = parsed.state
@@ -139,7 +148,7 @@ export const transformParser =
     return { ...parsed, res: handler(parsed.res) }
   }
 
-export const spaces: Parser<string> = tok(/^\s*/m)
+export const spaces: Parser<string> = tok(/^\s*/)
 
 export const alphaNum: Parser<string> = tok(/^[a-zA-Z][a-zA-Z0-9]*/)
 
