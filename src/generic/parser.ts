@@ -1,7 +1,6 @@
 export type ParserState = {
   readonly rest: string
   readonly position: number
-  readonly tryCase: boolean
 }
 
 export type ParseSuccessResult<T = unknown> = {
@@ -42,7 +41,7 @@ export const tok =
         token = matched[0]
       } else {
         return {
-          error: state.tryCase ? 'case' : 'tok',
+          error: 'tok',
           position: state.position,
         }
       }
@@ -51,7 +50,7 @@ export const tok =
         token = s
       } else {
         return {
-          error: state.tryCase ? 'case' : 'tok',
+          error: 'tok',
           position: state.position,
         }
       }
@@ -62,7 +61,6 @@ export const tok =
       state: {
         position: state.position + token.length,
         rest: state.rest.substring(token.length),
-        tryCase: token.length > 0 ? false : state.tryCase,
       },
     }
   }
@@ -77,6 +75,12 @@ export const seq =
     for (const arg of args) {
       const parsed = arg(state)
       if ('error' in parsed) {
+        if (res.length === 0) {
+          return {
+            ...parsed,
+            error: 'case',
+          }
+        }
         return parsed
       }
       state = parsed.state
@@ -95,7 +99,7 @@ export const or =
   ): Parser<ExtractParsersUnion<Args>> =>
   (state) => {
     for (const arg of args) {
-      const parsed = arg({ ...state, tryCase: true })
+      const parsed = arg(state)
       if ('error' in parsed) {
         if (parsed.error !== 'case') {
           return parsed
@@ -106,7 +110,7 @@ export const or =
     }
     return {
       position: state.position,
-      error: state.tryCase ? 'case' : 'or',
+      error: 'or',
     }
   }
 
@@ -116,7 +120,7 @@ export const star =
     const start = state.position
     const res: T[] = []
     for (;;) {
-      const parsed = parser({ ...state, tryCase: true })
+      const parsed = parser(state)
       if ('error' in parsed) {
         if (parsed.error !== 'case') {
           return parsed

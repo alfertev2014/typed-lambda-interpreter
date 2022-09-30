@@ -72,7 +72,7 @@ const printLinePosition = (s: string, position: number): string => {
 }
 
 export const parse = (s: string) => {
-  const parsed = parseRoot({ position: 0, rest: s, tryCase: false })
+  const parsed = parseRoot({ position: 0, rest: s })
   if ('error' in parsed) {
     const message =
       parsed.error === 'or' ? 'Unexpected syntax' : 'Unexpected token'
